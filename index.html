@@ -2,48 +2,49 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Digitag Memory - V26 (Mobile Fix)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"> <title>Digitag Memory - V27 (Mobile Perfect)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
     <style>
-        /* Empêcher le scroll de la page quand on touche la 3D */
+        /* Empêche le comportement tactile par défaut du navigateur (scroll, refresh) */
         body { margin: 0; overflow: hidden; background-color: transparent; font-family: -apple-system, BlinkMacSystemFont, sans-serif; touch-action: none; }
-        #canvas-container { width: 100vw; height: 100vh; display: block; outline: none; }
+        #canvas-container { width: 100vw; height: 100vh; display: block; outline: none; -webkit-tap-highlight-color: transparent; }
         
-        /* CONTROLES */
+        /* UI CONTROLES */
         #ui-cam {
             position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
-            display: flex; gap: 12px; z-index: 10;
-            background: rgba(255,255,255,0.8); padding: 10px 20px; border-radius: 40px;
+            display: flex; gap: 15px; z-index: 10;
+            background: rgba(255,255,255,0.85); padding: 12px 25px; border-radius: 40px;
             backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.5);
             box-shadow: 0 5px 20px rgba(0,0,0,0.1);
             transition: opacity 0.5s;
         }
         button.ctrl-btn {
-            background: #1d1d1f; color: white; border: none; padding: 12px 24px; /* Plus gros pour le doigt */
-            border-radius: 20px; font-size: 14px; font-weight: 600; cursor: pointer;
-            transition: all 0.3s ease;
+            background: #1d1d1f; color: white; border: none; padding: 12px 24px; /* Boutons plus gros pour le doigt */
+            border-radius: 25px; font-size: 14px; font-weight: 600; cursor: pointer;
+            transition: transform 0.2s;
         }
-        button.ctrl-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+        button.ctrl-btn:active { transform: scale(0.95); } /* Feedback visuel au toucher */
 
         /* CARTES INFO */
         .info-card {
-            position: absolute; top: 15%; right: 5%; width: 260px; /* Adapté mobile */
+            position: absolute; top: 15%; right: 5%; width: 280px; left: 5%; margin: auto; /* Centré sur mobile */
             background: rgba(255, 255, 255, 0.95); padding: 25px; border-radius: 24px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
-            opacity: 0; transform: translateX(50px); pointer-events: none;
-            transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1); z-index: 20;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            opacity: 0; transform: translateY(20px); pointer-events: none; /* Slide du bas plus joli sur mobile */
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1); z-index: 20;
             border: 1px solid rgba(255,255,255,0.5);
         }
-        .info-card.active { opacity: 1; transform: translateX(0); pointer-events: auto; }
-        .info-card h2 { margin: 0 0 10px 0; font-size: 20px; color: #111; font-weight: 700; }
-        .info-card p { font-size: 13px; color: #666; line-height: 1.5; margin: 0; }
+        @media (min-width: 768px) { .info-card { left: auto; top: 20%; right: 10%; transform: translateX(50px); } } /* Retour à droite sur PC */
+        
+        .info-card.active { opacity: 1; transform: translate(0, 0); pointer-events: auto; }
+        .info-card h2 { margin: 0 0 10px 0; font-size: 22px; color: #111; font-weight: 700; }
+        .info-card p { font-size: 14px; color: #666; line-height: 1.5; margin: 0; }
         .tag { display: inline-block; background: #007aff; color: white; padding: 4px 10px; border-radius: 8px; font-size: 10px; font-weight: bold; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
 
         /* BOUTON RETOUR */
         #btn-back {
-            position: absolute; top: 30px; left: 30px;
-            background: white; color: #111; padding: 12px 24px; border-radius: 30px;
+            position: absolute; top: 30px; left: 20px;
+            background: white; color: #111; padding: 12px 20px; border-radius: 30px;
             font-weight: 600; cursor: pointer; border: 1px solid #ddd;
             opacity: 0; transform: translateY(-20px); pointer-events: none;
             transition: all 0.4s ease; z-index: 20; box-shadow: 0 5px 15px rgba(0,0,0,0.05);
@@ -64,7 +65,7 @@
     <div id="loader">Chargement...</div>
 
     <div id="ui-cam">
-        <button class="ctrl-btn" onclick="toggleLid()">Ouvrir / Fermer</button>
+        <button class="ctrl-btn" onclick="toggleLid()">Ouvrir</button>
         <button class="ctrl-btn" onclick="resetView()">Vue Globale</button>
     </div>
 
@@ -93,17 +94,19 @@
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
+        // --- SCENE & CAMERA ---
         const scene = new THREE.Scene(); scene.background = new THREE.Color(0xfbfbfd);
         const camera = new THREE.PerspectiveCamera(35, window.innerWidth/window.innerHeight, 0.1, 100);
         camera.position.set(4, 5, 6);
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, logarithmicDepthBuffer: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setPixelRatio(window.devicePixelRatio); // Important pour la netteté sur mobile
         renderer.shadowMap.enabled = true;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         document.getElementById('canvas-container').appendChild(renderer.domElement);
 
+        // --- LUMIERES ---
         const amb = new THREE.AmbientLight(0xffffff, 0.7); scene.add(amb);
         const main = new THREE.DirectionalLight(0xffffff, 1.5);
         main.position.set(5, 8, 5); main.castShadow = true;
@@ -111,6 +114,7 @@
         const fill = new THREE.DirectionalLight(0xeef4ff, 0.5);
         fill.position.set(-5, 2, -5); scene.add(fill);
 
+        // --- TEXTURES ---
         const manager = new THREE.LoadingManager(() => { document.getElementById('loader').style.opacity=0; });
         const tl = new THREE.TextureLoader(manager);
         const getTex = (u) => { const t = tl.load(u); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=16; return t; };
@@ -123,6 +127,7 @@
         const texFlap = getTex('languette.jpg');
         const texWipes = getTex('lingettes.jpg'); 
 
+        // --- MATERIAUX ---
         const matExt = new THREE.MeshStandardMaterial({ map: texMarble, roughness: 0.5, metalness: 0.1 });
         const matLogo = new THREE.MeshStandardMaterial({ map: texLogo, roughness: 0.5 });
         const matIn = new THREE.MeshStandardMaterial({ map: texInside, roughness: 0.8 });
@@ -132,6 +137,7 @@
         const matFoam = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.95 });
         const matWipeSolid = new THREE.MeshStandardMaterial({ map: texWipes, roughness: 0.4, metalness: 0.3, side: THREE.DoubleSide });
 
+        // --- GEOMETRIE ---
         const group = new THREE.Group(); scene.add(group);
         const W=2.1, D=1.0, H=0.35;
 
@@ -141,6 +147,7 @@
         const foam = new THREE.Mesh(new THREE.BoxGeometry(W-0.08, 0.05, D-0.08), matFoam);
         foam.position.set(0, H-0.025, 0); group.add(foam);
 
+        // --- OBJETS VISIBLES ---
         const plate = new THREE.Mesh(new RoundedBoxGeometry(0.85, 0.01, 0.54, 2, 0.01), matPlate);
         plate.position.set(-0.45, 0.031, 0); plate.castShadow=true; plate.userData={id:'plate', y:0.031};
         foam.add(plate);
@@ -153,6 +160,21 @@
         wipeObj.position.set(0.5, 0.0, 0); wipeObj.castShadow = true;
         foam.add(wipeObj);
 
+        // --- HITBOXES INVISIBLES (LE SECRET POUR LE MOBILE) ---
+        // Ce sont des boites transparentes plus grosses autour des objets pour faciliter le clic
+        const hitMat = new THREE.MeshBasicMaterial({ visible: false }); // Invisible
+        
+        const hitPlate = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.2, 0.8), hitMat);
+        hitPlate.position.set(-0.45, 0.1, 0); 
+        hitPlate.userData = { parentObj: plate }; // Lien vers le vrai objet
+        foam.add(hitPlate);
+
+        const hitPouch = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.2, 0.9), hitMat);
+        hitPouch.position.set(0.5, 0.1, 0);
+        hitPouch.userData = { parentObj: pouch }; // Lien vers le vrai objet
+        foam.add(hitPouch);
+
+        // Couvercle
         const lidPivot = new THREE.Group(); lidPivot.position.set(0, H, -D/2); group.add(lidPivot);
         const lid = new THREE.Mesh(new RoundedBoxGeometry(W, 0.04, D, 4, 0.01), [matExt,matExt,matLogo,matIn,matExt,matExt]);
         lid.position.set(0, 0.02, D/2); lid.castShadow=true; lidPivot.add(lid);
@@ -162,64 +184,85 @@
         const floor = new THREE.Mesh(new THREE.PlaneGeometry(30,30), new THREE.ShadowMaterial({opacity:0.15}));
         floor.rotation.x=-Math.PI/2; scene.add(floor);
 
+        // --- CONTROLES ---
         const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true; controls.enableZoom = true; 
-        controls.minDistance = 2; controls.maxDistance = 15;
+        controls.enableDamping=true; controls.enableZoom=true; controls.minDistance=2; controls.maxDistance=15;
         
         let isOpen=false, isFocus=false;
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
 
+        // --- LOGIQUE TACTILE MOBILE ---
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        // 1. On touche l'écran
+        renderer.domElement.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        }, { passive: false });
+
+        // 2. On lève le doigt
+        renderer.domElement.addEventListener('touchend', (e) => {
+            if (isFocus) return; // Si déjà zoomé, on fait rien
+
+            const touchEndX = e.changedTouches[0].clientX;
+            const touchEndY = e.changedTouches[0].clientY;
+            
+            // Calcul de la distance parcourue par le doigt
+            const dist = Math.sqrt(Math.pow(touchEndX - touchStartX, 2) + Math.pow(touchEndY - touchStartY, 2));
+
+            // Si le doigt a bougé de moins de 10 pixels, C'EST UN CLIC (Tap)
+            // Sinon, c'est un mouvement de caméra, donc on ignore
+            if (dist < 10) {
+                e.preventDefault(); // Empêche le zoom double-tap du navigateur
+                
+                mouse.x = (touchEndX / window.innerWidth) * 2 - 1;
+                mouse.y = -(touchEndY / window.innerHeight) * 2 + 1;
+                
+                checkIntersection();
+            }
+        });
+
+        // Clic souris classique pour PC
+        window.addEventListener('click', (e) => {
+            if (e.target.closest('button')) return;
+            if (isFocus) return;
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            checkIntersection();
+        });
+
+        function checkIntersection() {
+            raycaster.setFromCamera(mouse, camera);
+            // On teste l'intersection avec les HITBOXES (plus grosses), pas les objets
+            const hits = raycaster.intersectObjects([hitPlate, hitPouch]);
+            
+            if(hits.length > 0) {
+                // On récupère le vrai objet lié à la hitbox
+                const realObj = hits[0].object.userData.parentObj;
+                focusObj(realObj);
+            }
+        }
+
+        // --- ANIMATIONS ---
         window.toggleLid = function() {
             isOpen = !isOpen;
             const targetRot = isOpen ? -Math.PI / 1.7 : 0;
-            const ease = isOpen ? TWEEN.Easing.Back.Out : TWEEN.Easing.Cubic.Out;
-            new TWEEN.Tween(lidPivot.rotation).to({ x: targetRot }, 1000).easing(ease).start();
+            const easing = isOpen ? TWEEN.Easing.Back.Out : TWEEN.Easing.Cubic.Out;
+            new TWEEN.Tween(lidPivot.rotation).to({ x: targetRot }, 1000).easing(easing).start();
+            
+            // Change le texte du bouton
+            const btn = document.querySelector('.ctrl-btn');
+            if(btn) btn.innerText = isOpen ? "Fermer" : "Ouvrir";
         };
-
-        // --- LOGIQUE MOBILE ET CLIC CORRIGÉE ---
-        let isDragging = false;
-        let startX = 0;
-        let startY = 0;
-
-        // Détection du début du toucher/clic
-        window.addEventListener('pointerdown', (e) => {
-            isDragging = false;
-            startX = e.clientX;
-            startY = e.clientY;
-        });
-
-        // Détection du mouvement (si on bouge, c'est un drag, pas un clic)
-        window.addEventListener('pointermove', (e) => {
-            if (Math.abs(e.clientX - startX) > 5 || Math.abs(e.clientY - startY) > 5) {
-                isDragging = true;
-            }
-        });
-
-        // Détection de la fin (si on a pas bougé, c'est un clic valide)
-        window.addEventListener('pointerup', (e) => {
-            if (isDragging) return; // On ignore si c'était pour tourner la caméra
-            if (e.target.closest('button')) return; // On ignore si c'est un bouton
-            if (isFocus) return;
-
-            // Calcul des coordonnées pour le Raycaster
-            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-            
-            raycaster.setFromCamera(mouse, camera);
-            const hits = raycaster.intersectObjects([plate, pouch]);
-            
-            if(hits.length > 0) {
-                // Petit délai pour éviter les conflits sur mobile
-                setTimeout(() => focusObj(hits[0].object), 50);
-            }
-        });
 
         function focusObj(obj) {
             isFocus = true;
             if(!isOpen) toggleLid();
             document.getElementById('ui-cam').style.opacity=0; document.getElementById('ui-cam').style.pointerEvents='none';
 
+            // Sortie Sachet
             if(obj === pouch) {
                 new TWEEN.Tween(wipeObj.position).to({ y: 0.35, z: -0.15 }, 1000).easing(TWEEN.Easing.Cubic.Out).delay(100).start();
                 new TWEEN.Tween(wipeObj.rotation).to({ x: 0.4, z: 0.1 }, 1200).delay(100).start();
@@ -231,8 +274,8 @@
             obj.getWorldPosition(targetPos);
             const camOffset = (obj === pouch) ? 0.2 : -0.5;
 
-            new TWEEN.Tween(camera.position).to({x: targetPos.x + camOffset, y: targetPos.y + 1.2, z: targetPos.z + 1.2}, 1200).easing(TWEEN.Easing.Cubic.InOut).start();
-            new TWEEN.Tween(controls.target).to({x: targetPos.x, y: targetPos.y + 0.1, z: targetPos.z}, 1200).easing(TWEEN.Easing.Cubic.InOut).start();
+            new TWEEN.Tween(camera.position).to({x: targetPos.x + camOffset, y: targetPos.y + 1.5, z: targetPos.z + 1.5}, 1200).easing(TWEEN.Easing.Cubic.InOut).start();
+            new TWEEN.Tween(controls.target).to({x: targetPos.x, y: targetPos.y, z: targetPos.z}, 1200).easing(TWEEN.Easing.Cubic.InOut).start();
 
             setTimeout(() => {
                 const id = obj.userData.id === 'plate' ? 'card-plate' : 'card-pouch';
