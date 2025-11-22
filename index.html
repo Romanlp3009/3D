@@ -2,13 +2,13 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Digitag Memory - V25 (Zoom Activé)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Digitag Memory - V26 (Mobile Fix)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; background-color: transparent; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
-        #canvas-container { width: 100vw; height: 100vh; display: block; outline: none; cursor: grab; }
-        #canvas-container:active { cursor: grabbing; }
+        /* Empêcher le scroll de la page quand on touche la 3D */
+        body { margin: 0; overflow: hidden; background-color: transparent; font-family: -apple-system, BlinkMacSystemFont, sans-serif; touch-action: none; }
+        #canvas-container { width: 100vw; height: 100vh; display: block; outline: none; }
         
         /* CONTROLES */
         #ui-cam {
@@ -20,36 +20,35 @@
             transition: opacity 0.5s;
         }
         button.ctrl-btn {
-            background: #1d1d1f; color: white; border: none; padding: 10px 22px;
-            border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer;
+            background: #1d1d1f; color: white; border: none; padding: 12px 24px; /* Plus gros pour le doigt */
+            border-radius: 20px; font-size: 14px; font-weight: 600; cursor: pointer;
             transition: all 0.3s ease;
         }
         button.ctrl-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
 
         /* CARTES INFO */
         .info-card {
-            position: absolute; top: 20%; right: 10%; width: 280px;
-            background: rgba(255, 255, 255, 0.95); padding: 30px; border-radius: 24px;
+            position: absolute; top: 15%; right: 5%; width: 260px; /* Adapté mobile */
+            background: rgba(255, 255, 255, 0.95); padding: 25px; border-radius: 24px;
             box-shadow: 0 20px 40px rgba(0,0,0,0.15);
             opacity: 0; transform: translateX(50px); pointer-events: none;
             transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1); z-index: 20;
             border: 1px solid rgba(255,255,255,0.5);
         }
         .info-card.active { opacity: 1; transform: translateX(0); pointer-events: auto; }
-        .info-card h2 { margin: 0 0 10px 0; font-size: 22px; color: #111; font-weight: 700; }
-        .info-card p { font-size: 14px; color: #666; line-height: 1.5; margin: 0; }
+        .info-card h2 { margin: 0 0 10px 0; font-size: 20px; color: #111; font-weight: 700; }
+        .info-card p { font-size: 13px; color: #666; line-height: 1.5; margin: 0; }
         .tag { display: inline-block; background: #007aff; color: white; padding: 4px 10px; border-radius: 8px; font-size: 10px; font-weight: bold; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
 
         /* BOUTON RETOUR */
         #btn-back {
-            position: absolute; top: 40px; left: 40px;
+            position: absolute; top: 30px; left: 30px;
             background: white; color: #111; padding: 12px 24px; border-radius: 30px;
             font-weight: 600; cursor: pointer; border: 1px solid #ddd;
             opacity: 0; transform: translateY(-20px); pointer-events: none;
             transition: all 0.4s ease; z-index: 20; box-shadow: 0 5px 15px rgba(0,0,0,0.05);
         }
         #btn-back.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
-        #btn-back:hover { transform: scale(1.05); }
 
         /* LOADER */
         #loader {
@@ -131,10 +130,7 @@
         const matPouch = new THREE.MeshStandardMaterial({ map: texPouch, roughness: 0.6 });
         const matFlap = new THREE.MeshStandardMaterial({ map: texFlap, roughness: 0.5 });
         const matFoam = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.95 });
-        
-        const matWipeSolid = new THREE.MeshStandardMaterial({ 
-            map: texWipes, roughness: 0.4, metalness: 0.3, side: THREE.DoubleSide 
-        });
+        const matWipeSolid = new THREE.MeshStandardMaterial({ map: texWipes, roughness: 0.4, metalness: 0.3, side: THREE.DoubleSide });
 
         const group = new THREE.Group(); scene.add(group);
         const W=2.1, D=1.0, H=0.35;
@@ -160,18 +156,15 @@
         const lidPivot = new THREE.Group(); lidPivot.position.set(0, H, -D/2); group.add(lidPivot);
         const lid = new THREE.Mesh(new RoundedBoxGeometry(W, 0.04, D, 4, 0.01), [matExt,matExt,matLogo,matIn,matExt,matExt]);
         lid.position.set(0, 0.02, D/2); lid.castShadow=true; lidPivot.add(lid);
-        const flap = new THREE.Mesh(new RoundedBoxGeometry(W, H, 0.04, 4, 0.01), matFlap);
+        const flap = new THREE.Mesh(new RoundedBoxGeometry(W, H, 0.03, 4, 0.01), matFlap);
         flap.position.set(0, -H/2+0.02, D/2-0.015); flap.castShadow=true; lid.add(flap);
 
         const floor = new THREE.Mesh(new THREE.PlaneGeometry(30,30), new THREE.ShadowMaterial({opacity:0.15}));
         floor.rotation.x=-Math.PI/2; scene.add(floor);
 
-        // CONTROLES MODIFIÉS : ZOOM ACTIVÉ
         const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true; 
-        controls.enableZoom = true; // ZOOM OUI !
-        controls.minDistance = 2;   // Ne pas aller trop près (dans la boite)
-        controls.maxDistance = 15;  // Ne pas aller trop loin
+        controls.enableDamping = true; controls.enableZoom = true; 
+        controls.minDistance = 2; controls.maxDistance = 15;
         
         let isOpen=false, isFocus=false;
         const raycaster = new THREE.Raycaster();
@@ -184,14 +177,42 @@
             new TWEEN.Tween(lidPivot.rotation).to({ x: targetRot }, 1000).easing(ease).start();
         };
 
-        window.addEventListener('click', (e) => {
-            if(e.target.closest('button')) return;
-            if(isFocus) return;
+        // --- LOGIQUE MOBILE ET CLIC CORRIGÉE ---
+        let isDragging = false;
+        let startX = 0;
+        let startY = 0;
+
+        // Détection du début du toucher/clic
+        window.addEventListener('pointerdown', (e) => {
+            isDragging = false;
+            startX = e.clientX;
+            startY = e.clientY;
+        });
+
+        // Détection du mouvement (si on bouge, c'est un drag, pas un clic)
+        window.addEventListener('pointermove', (e) => {
+            if (Math.abs(e.clientX - startX) > 5 || Math.abs(e.clientY - startY) > 5) {
+                isDragging = true;
+            }
+        });
+
+        // Détection de la fin (si on a pas bougé, c'est un clic valide)
+        window.addEventListener('pointerup', (e) => {
+            if (isDragging) return; // On ignore si c'était pour tourner la caméra
+            if (e.target.closest('button')) return; // On ignore si c'est un bouton
+            if (isFocus) return;
+
+            // Calcul des coordonnées pour le Raycaster
             mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
             mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            
             raycaster.setFromCamera(mouse, camera);
             const hits = raycaster.intersectObjects([plate, pouch]);
-            if(hits.length > 0) focusObj(hits[0].object);
+            
+            if(hits.length > 0) {
+                // Petit délai pour éviter les conflits sur mobile
+                setTimeout(() => focusObj(hits[0].object), 50);
+            }
         });
 
         function focusObj(obj) {
