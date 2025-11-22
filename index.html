@@ -178,7 +178,7 @@
         const lidPivot = new THREE.Group(); lidPivot.position.set(0, H, -D/2); group.add(lidPivot);
         const lid = new THREE.Mesh(new RoundedBoxGeometry(W, 0.04, D, 4, 0.01), [matExt,matExt,matLogo,matIn,matExt,matExt]);
         lid.position.set(0, 0.02, D/2); lid.castShadow=true; lidPivot.add(lid);
-        const flap = new THREE.Mesh(new RoundedBoxGeometry(W, H, 0.03, 4, 0.01), matFlap);
+        const flap = new THREE.Mesh(new RoundedBoxGeometry(W, H, 0.04, 4, 0.01), matFlap);
         flap.position.set(0, -H/2+0.02, D/2-0.015); flap.castShadow=true; lid.add(flap);
 
         const floor = new THREE.Mesh(new THREE.PlaneGeometry(30,30), new THREE.ShadowMaterial({opacity:0.15}));
@@ -307,4 +307,5 @@
     </script>
 </body>
 </html>
+
 
